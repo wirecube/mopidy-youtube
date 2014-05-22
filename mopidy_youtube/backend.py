@@ -31,14 +31,11 @@ def safe_url(uri):
 
 
 def resolve_url(url, stream=False):
-    logger.info("starting new")
     video = pafy.new(url)
-    logger.info("ending new")
     if not stream:
         uri = 'youtube:video/%s.%s' % (
             safe_url(video.title), video.videoid
         )
-        logger.info("Url in resolve_url: %s", uri)
     else:
         uri = video.getbestaudio()
         if not uri:  # get video url
@@ -68,12 +65,9 @@ def search_youtube(q):
     }
     pl = requests.get(yt_api_endpoint+'search', params=query)
     playlist = []
-    logger.info("search returns...")
     resultlist = pl.json().get('items')
     for yt_id in resultlist:
         try:
-            #track = resolve_url(yt_id.get('id').get('videoId'))
-            #playlist.append(track)
             videoid=yt_id.get('id').get('videoId')
             videotitle=yt_id.get('snippet').get('title')
             videodesc=yt_id.get('snippet').get('description')
@@ -90,10 +84,8 @@ def search_youtube(q):
                 ),
                 uri=uri)
             playlist.append(track)
-            #logger.info(".")
         except Exception as e:
             logger.info(e.message)
-    logger.info("Results for youtube are here...");
     return playlist
 
 
