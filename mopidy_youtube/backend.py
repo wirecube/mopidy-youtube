@@ -26,29 +26,24 @@ def resolve_track(track, stream=False):
 
 def safe_url(uri):
     valid_chars = "-_.() %s%s" % (string.ascii_letters, string.digits)
-    safe_uri = unicodedata.normalize(
-        'NFKD',
-        unicode(uri)
-    ).encode('ASCII', 'ignore')
-    return re.sub(
-        '\s+',
-        ' ',
-        ''.join(c for c in safe_uri if c in valid_chars)
-    ).strip()
+    safe_uri = unicodedata.normalize('NFKD', unicode(uri)).encode('ASCII', 'ignore')
+    return re.sub('\s+', ' ', ''.join(c for c in safe_uri if c in valid_chars)).strip()
 
 
 def resolve_url(url, stream=False):
+    logger.info("starting new")
     video = pafy.new(url)
+    logger.info("ending new")
     if not stream:
         uri = 'youtube:video/%s.%s' % (
             safe_url(video.title), video.videoid
         )
+        logger.info("Url in resolve_url: %s", uri)
     else:
         uri = video.getbestaudio()
         if not uri:  # get video url
             uri = video.getbest()
-        logger.debug('%s - %s %s %s' % (
-            video.title, uri.bitrate, uri.mediatype, uri.extension))
+        logger.debug('%s - %s %s %s' % (video.title, uri.bitrate, uri.mediatype, uri.extension))
         uri = uri.url
     track = Track(
         name=video.title,
@@ -65,7 +60,7 @@ def resolve_url(url, stream=False):
 
 def search_youtube(q):
     query = {
-        'part': 'id',
+        'part': 'id,snippet',
         'maxResults': 15,
         'type': 'video',
         'q': q,
@@ -73,12 +68,32 @@ def search_youtube(q):
     }
     pl = requests.get(yt_api_endpoint+'search', params=query)
     playlist = []
-    for yt_id in pl.json().get('items'):
+    logger.info("search returns...")
+    resultlist = pl.json().get('items')
+    for yt_id in resultlist:
         try:
-            track = resolve_url(yt_id.get('id').get('videoId'))
+            #track = resolve_url(yt_id.get('id').get('videoId'))
+            #playlist.append(track)
+            videoid=yt_id.get('id').get('videoId')
+            videotitle=yt_id.get('snippet').get('title')
+            videodesc=yt_id.get('snippet').get('description')
+            thumb=yt_id.get('snippet').get('thumbnails').get('default').get('url')
+            uri = 'youtube:video/%s.%s' % (safe_url(videotitle), videoid)
+            #logger.info(uri)
+            track = Track(
+                name=videotitle,
+                comment=videoid,
+                length=0,
+                album=Album(
+                name='Youtube',
+                images=[]
+                ),
+                uri=uri)
             playlist.append(track)
+            #logger.info(".")
         except Exception as e:
             logger.info(e.message)
+    logger.info("Results for youtube are here...");
     return playlist
 
 
@@ -144,14 +159,13 @@ class YoutubeLibraryProvider(backend.LibraryProvider):
                         tracks=resolve_playlist(req.get('list')[0])
                     )
                 else:
-                    logger.info(
-                        "Resolving Youtube for track '%s'", search_query)
+                    logger.info("Resolving Youtube for track '%s'", search_query)
                     return SearchResult(
                         uri='youtube:search',
                         tracks=[resolve_url(search_query)]
                     )
         else:
-            search_query = ' '.join(query.values()[0])
+            search_query = ''.join(query.values()[0])
             logger.info("Searching Youtube for query '%s'", search_query)
             return SearchResult(
                 uri='youtube:search',
